@@ -2,6 +2,6 @@
 #include "abnf.h"
 
 // cppcheck-suppress unusedFunction
-struct response handleRequest(struct stream stream) {
+bool handleRequest(struct stream stream) {
   return http_message(stream);
 }

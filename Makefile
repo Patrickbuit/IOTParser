@@ -54,8 +54,8 @@ object_files=$(project)/cserver.o \
              $(project)/abnf.o \
              buffermock.o
 
-#unittest=unit_test
-unittest=integration_test
+unittest=unit_test
+#unittest=integration_test
 
 # do not change:
 

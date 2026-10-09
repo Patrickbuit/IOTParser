@@ -4,14 +4,12 @@
 #include "stream.h"
 #include <stdbool.h> // ik denk dat deze hier overbodig is
 
-// bool handleRequest(struct stream);
+bool handleRequest(struct stream);
 
-
-
-// Op moment dat je overgaat van unittests naar integratietests
-// krijgt `handleRequest` een nieuw return-type.
-// Zonder het nu te controleren, verwacht ik dat de onderstaande
-// definitie werkt.
+// Op moment dat je overgaat van unittests naar
+// integratietests krijgt `handleRequest` een nieuw
+// return-type. Zonder het nu te controleren, verwacht ik
+// dat de onderstaande definitie werkt.
 
 enum statuscode {
   INTERNAL_SERVER_ERROR_500, // failed to malloc cbuffers
@@ -35,8 +33,5 @@ struct response {
     double get_actual;
   };
 };
-
-struct response handleRequest(struct stream);
-
 
 #endif

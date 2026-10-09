@@ -26,7 +26,6 @@ static bool readTokenValue(struct stream, enum tokentype,
 void catValue(const char*, char[], size_t);
 
 bool http_message(struct stream stream) {
-
 #ifndef NDEBUG
   printf("starting http_message scan \n");
 #endif
