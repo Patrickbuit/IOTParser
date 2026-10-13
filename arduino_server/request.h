@@ -58,15 +58,17 @@ enum body {
 
 struct request {
   bool success;
-
   enum method method;
   enum target target[3];
   enum field field;
   enum body body;
-
   int16_t content_length;
-
   int16_t body_int; // in case body == BODY_INT
+};
+
+struct request_line {
+  enum method method;
+  enum target target[3];
 };
 
 #endif

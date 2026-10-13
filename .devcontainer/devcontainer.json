@@ -1,0 +1,17 @@
+{
+    "name": "C Development (GCC)",
+    "build": {
+        "dockerfile": "../Dockerfile",
+        "context": ".."
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "llvm-vs-code-extensions.vscode-clangd",
+                "ms-vscode.cpptools",
+                "xaver.clang-format"
+            ]
+        }
+    },
+    "remoteUser": "root"
+}

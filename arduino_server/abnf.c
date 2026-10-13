@@ -1,4 +1,5 @@
 #include "abnf.h"
+#include "request.h"
 #include "token.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,14 +10,14 @@
 static bool field_line(struct stream);
 static bool field_name(struct stream);
 static bool field_value(struct stream);
-static bool http_token(struct stream);
+static bool http_token(struct stream stream, char* token, size_t max_token_length);
 static bool http_version(struct stream);
 static bool message_body(struct stream);
-static bool method(struct stream);
-static bool origin_form(struct stream);
-static bool request_line(struct stream);
+enum method method(struct stream);
+static bool origin_form(struct stream, char* token, size_t max_token_size);
+bool request_line(struct stream, struct request_line* line);
 static bool request_target(struct stream);
-static bool start_line(struct stream);
+static bool start_line(struct stream, struct request_line* line);
 static bool tchar(struct stream, char[], size_t);
 
 static bool readTokenType(struct stream, enum tokentype);
@@ -31,13 +32,11 @@ bool http_message(struct stream stream) {
 #endif
   initTokenizer();
 
-  // ABNF for http_message is an AND construction, so early
-  // exit on error
-
-  if (!start_line(stream)) {
-#ifndef NDEBUG
+  struct request_line line;
+  if (!start_line(stream, &line)) {
+    #ifndef NDEBUG
     printf("no valid start line found\n");
-#endif
+    #endif
     return false;
   }
 
@@ -92,7 +91,9 @@ static bool field_line(struct stream stream) {
 }
 
 static bool field_name(struct stream stream) {
-  if (!http_token(stream)) {
+  char field_token[HTTP_TOKEN_LENGTH];
+
+  if (!http_token(stream, field_token, sizeof(field_token))) {
     return false;
   }
   return true;
@@ -112,18 +113,14 @@ static bool field_value(struct stream stream) {
   return false;
 }
 
-static bool http_token(struct stream stream) {
+static bool http_token(struct stream stream, char* token, size_t max_token_length) {
 
-  char tmp[HTTP_TOKEN_LENGTH];
-
-  if (!tchar(stream, tmp, HTTP_TOKEN_LENGTH)) {
-
+  if (!tchar(stream, token, max_token_length)) {
     return false;
   }
 
-  while (tchar(stream, tmp, HTTP_TOKEN_LENGTH)) {
+  while (tchar(stream, token, max_token_length)) {
   }
-
   return true;
 }
 
@@ -178,93 +175,98 @@ static bool message_body(struct stream stream) {
   return true;
 }
 
-static bool method(struct stream stream) {
+enum method method(struct stream stream) {
 
-  // //Peek first letter. Depending on that, choose how to
-  // parse. char firstChar = stream.peek();
+  //initialiseren met null termination voor de zekerheid.
+    char method_token[HTTP_TOKEN_LENGTH];
+    method_token[0] = '\0';
 
-  // switch(firstChar) {
-  //   case 'G':
+    if (!http_token(stream, method_token, sizeof(method_token))) {
+        return METHOD_UNRECOGNIZED;
+    }
 
-  //     const char* expectedMethod = "GET";
-  //     char nullTerminatedChar[2];
+    if (strcmp(method_token, "GET") == 0) {
+        return METHOD_GET;
+    }
 
-  //     for(int i = 0; expectedMethod[i]; i++) {
-  //       nullTerminatedChar[0] = expectedMethod[i];
-  //       nullTerminatedChar[1] = "\0";
-  //       if(!hasTokenValue(readToken(stream), ALPHA,
-  //       nullTerminatedChar)) {
-  //         return false;
-  //       }
-  //     }
+    if (strcmp(method_token, "POST") == 0) {
+        return METHOD_POST;
+    }
 
-  //   return true;
+    if (strcmp(method_token, "PUT") == 0) {
+        return METHOD_PUT;
+    }
 
-  //   case 'P':
+    if (strcmp(method_token, "DELETE") == 0) {
+        return METHOD_DELETE;
+    }
 
-  //   break;
-
-  //   case 'D':
-
-  //   break;
-
-  //}
-
-  return http_token(stream);
+    return METHOD_UNRECOGNIZED;
 }
 
-static bool request_line(struct stream stream) {
+bool request_line(struct stream stream, struct request_line* line) {
 
-  if (!method(stream)) {
-#ifndef NDEBUG
+  enum method line_method;
+  if(method(stream) == METHOD_UNRECOGNIZED) {
+    #ifndef NDEBUG
     printf("no valid method found in request line \n");
-#endif
+    #endif
     return false;
   }
 
+  else {
+    line->method = line_method;
+  }
+
   if (!readTokenType(stream, SP)) {
-#ifndef NDEBUG
+    #ifndef NDEBUG
     printf("no valid SP found in request line \n");
-#endif
+    #endif
     return false;
   };
 
-  if (!request_target(stream)) {
-
-#ifndef NDEBUG
-    printf(
-        "no valid request target found in request line \n");
-#endif
-
+  enum target line_target[3];
+  if (request_target(stream) == TARGET_UNRECOGNIZED) {
+    #ifndef NDEBUG
+    printf("no valid request target found in request line \n");
+    #endif
     return false;
+  }
+
+  else {
+    if(sizeof(line->target) == 3) {
+    line->target[0] = line_target[0];
+    line->target[1] = line_target[1];
+    line->target[2] = line_target[2];
+    }
   }
 
   if (!readTokenType(stream, SP)) {
 
-#ifndef NDEBUG
+  #ifndef NDEBUG
     printf("no valid SP 2 found in request line \n");
-#endif
-    return false;
+  #endif
+  return false;
   };
 
   if (!http_version(stream)) {
-#ifndef NDEBUG
-    printf(
-        "no valid http version found in request line \n");
-#endif
-    return false;
+  #ifndef NDEBUG
+      printf(
+          "no valid http version found in request line \n");
+  #endif
+  return false;
   }
 
-#ifndef NDEBUG
-  printf("request line ok! \n");
-#endif
-
+  #ifndef NDEBUG
+    printf("request line ok! \n");
+  #endif
   return true;
 }
 
 static bool request_target(struct stream stream) {
+  char target_token[HTTP_TOKEN_LENGTH];
 
-  if (!origin_form(stream)) {
+  if (!origin_form(stream, target_token, sizeof(target_token))) {
     return false;
   };
 
@@ -274,23 +276,23 @@ static bool request_target(struct stream stream) {
   return true;
 }
 
-static bool origin_form(struct stream stream) {
+static bool origin_form(struct stream stream, char* token, size_t max_token_size) {
 
-  // first character has to be //
+  // first character has to be /
   if (!readTokenValue(stream, VCHAR, "/")) {
     return false;
   }
 
   // Optional arguments
-  if (http_token(stream)) {
-    origin_form(stream);
+  if (http_token(stream, token, max_token_size)) {
+    origin_form(stream, token, max_token_size);
   }
 
   return true;
 }
 
-static bool start_line(struct stream stream) {
-  return request_line(stream);
+static bool start_line(struct stream stream, struct request_line* line) {
+  return request_line(stream, line);
 }
 
 static bool tchar(struct stream stream, char result[],
@@ -359,6 +361,7 @@ static bool readTokenValue(struct stream stream,
   return true;
 }
 
+//Dit zorgt gelukkig voor null termination, dus daar hoef ik niet over na te denken.
 void catValue(const char* value, char result[],
               size_t len) {
   if (len == 0) {
