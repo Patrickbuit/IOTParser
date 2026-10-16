@@ -26,6 +26,7 @@ wat kleine zaken moet wijzigen.
 */
 
 enum method {
+  METHOD_PARSE_FAILURE,
   METHOD_UNRECOGNIZED,
   METHOD_GET,
   METHOD_POST,
@@ -34,6 +35,7 @@ enum method {
 };
 
 enum target {
+  TARGET_PARSE_FAILURE,
   TARGET_UNRECOGNIZED,
   TARGET_CONFIG,
   TARGET_MODE,
@@ -46,7 +48,7 @@ enum target {
   TARGET_ACTUAL
 };
 
-enum field { FIELD_UNRECOGNIZED, FIELD_CONTENT_LENGTH };
+enum field {FIELD_PARSE_FAILURE, FIELD_UNRECOGNIZED, FIELD_CONTENT_LENGTH };
 
 enum body {
   BODY_EMPTY,

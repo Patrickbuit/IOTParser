@@ -1,6 +1,7 @@
 #include "abnf.h"
 #include "request.h"
 #include "token.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,7 +17,7 @@ static bool message_body(struct stream);
 enum method method(struct stream);
 static bool origin_form(struct stream, char* token, size_t max_token_size);
 bool request_line(struct stream, struct request_line* line);
-static bool request_target(struct stream);
+enum target request_target(struct stream);
 static bool start_line(struct stream, struct request_line* line);
 static bool tchar(struct stream, char[], size_t);
 
@@ -63,9 +64,7 @@ bool http_message(struct stream stream) {
   return true;
 }
 
-// remaining ABFN functions are stubs
-
-static bool field_line(struct stream stream) {
+static bool field_line(struct stream stream, struct field_line* line) {
 
   if (!field_name(stream)) {
     return false;
@@ -182,7 +181,7 @@ enum method method(struct stream stream) {
     method_token[0] = '\0';
 
     if (!http_token(stream, method_token, sizeof(method_token))) {
-        return METHOD_UNRECOGNIZED;
+        return METHOD_PARSE_FAILURE;
     }
 
     if (strcmp(method_token, "GET") == 0) {
@@ -225,8 +224,8 @@ bool request_line(struct stream stream, struct request_line* line) {
     return false;
   };
 
-  enum target line_target[3];
-  if (request_target(stream) == TARGET_UNRECOGNIZED) {
+  enum target line_targets[3];
+  if (request_target(stream)){
     #ifndef NDEBUG
     printf("no valid request target found in request line \n");
     #endif
@@ -235,9 +234,9 @@ bool request_line(struct stream stream, struct request_line* line) {
 
   else {
     if(sizeof(line->target) == 3) {
-    line->target[0] = line_target[0];
-    line->target[1] = line_target[1];
-    line->target[2] = line_target[2];
+    line->target[0] = line_targets[0];
+    line->target[1] = line_targets[1];
+    line->target[2] = line_targets[2];
     }
   }
 
@@ -263,16 +262,32 @@ bool request_line(struct stream stream, struct request_line* line) {
   return true;
 }
 
-static bool request_target(struct stream stream) {
+enum target request_target(struct stream stream) {
   char target_token[HTTP_TOKEN_LENGTH];
 
   if (!origin_form(stream, target_token, sizeof(target_token))) {
-    return false;
+    return TARGET_PARSE_FAILURE;
   };
 
-#ifndef NDEBUG
+  #ifndef NDEBUG
   printf("request_target ok! \n");
-#endif
+  #endif
+
+// enum target {
+//   TARGET_UNRECOGNIZED,
+//   TARGET_CONFIG,
+//   TARGET_MODE,
+//   TARGET_CBUFFSIZE,
+//   TARGET_SENSORS,
+//   TARGET_1,
+//   TARGET_2,
+//   TARGET_AVG,
+//   TARGET_STDEV,
+//   TARGET_ACTUAL
+// };
+
+//compare target_token against all of these enum members. 
+
   return true;
 }
 
@@ -368,4 +383,47 @@ void catValue(const char* value, char result[],
     return;
   }
   strncat(result, value, len - strlen(result) - 1);
+}
+
+static bool valid_target_sequence(
+    const enum target* targets,
+    size_t count
+) {
+    if (count == 0) {
+        return false;
+    }
+
+    switch (targets[0]) {
+        case TARGET_CONFIG:
+        case TARGET_MODE:
+        case TARGET_CBUFFSIZE:
+            return count == 1;
+
+        case TARGET_SENSORS:
+            if (count != 3) {
+                return false;
+            }
+
+            switch (targets[1]) {
+                case TARGET_1:
+                case TARGET_2:
+                    break;
+
+                default:
+                    return false;
+            }
+
+            switch (targets[2]) {
+                case TARGET_AVG:
+                case TARGET_STDEV:
+                case TARGET_ACTUAL:
+                    return true;
+
+                default:
+                    return false;
+            }
+
+        default:
+            return false;
+    }
 }
